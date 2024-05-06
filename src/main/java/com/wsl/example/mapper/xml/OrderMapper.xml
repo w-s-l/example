@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wsl.example.mapper.OrderMapper">
+
+    <select id="selectOrder" resultType="com.wsl.example.dto.OrderDTO">
+        select
+        group_concat(distinct o.id) as id,
+        sum(oi.num) as totalNum,
+        sum(oi.total_amount) as payAmount,
+        group_concat(distinct u2.nickname) as buyerName,
+        group_concat(distinct u1.nickname) as sellerName,
+        group_concat(distinct o.status) as status,
+        group_concat(distinct s.name) as shopName,
+        group_concat(distinct o.out_trade_no) as outTradeNo,
+        JSON_ARRAYAGG(JSON_OBJECT(
+        'id',oi.id,
+        'itemId',oi.item_id,
+        'title',i.title,
+        'color',i.color,
+        'size',i.size,
+        'sku',i.sku,
+        'shopId',i.shop_id,
+        'shopName',s.name,
+        'price',i.price,
+        'num',oi.num,
+        'totalAmount',oi.total_amount
+        )) as detailStr
+        from `order` o
+        left join order_item oi on oi.oid = o.id
+        left join item i on i.id = oi.item_id
+        left join user u1 on u1.id = o.seller_id
+        left join user u2 on u2.id = o.buyer_id
+        left join shop s on s.id = o.shop_id
+        <where>
+            <if test="null != param.shopName and param.shopName != ''">
+                and s.name like concat('%',#{param.shopName},'%')
+            </if>
+            <if test="null != param.orderStatus and param.orderStatus != ''">
+                and o.status = #{param.orderStatus}
+            </if>
+        </where>
+        <choose>
+            <when test="null != param.groupField and param.groupField != ''">
+                group by ${param.groupField}
+            </when>
+            <otherwise>
+                group by o.id
+            </otherwise>
+        </choose>
+        <choose>
+            <when test="null != param.itemNumStart and param.itemNumStart != ''
+            and null != param.itemNumEnd and param.itemNumEnd != ''">
+                having totalNum between #{param.itemNumStart} and #{param.itemNumEnd}
+            </when>
+            <when test="null != param.itemNumStart and param.itemNumStart != ''">
+                having totalNum &gt;= #{param.itemNumStart}
+            </when>
+            <when test="null != param.itemNumEnd and param.itemNumEnd != ''">
+                having totalNum &lt;= #{param.itemNumEnd}
+            </when>
+        </choose>
+        <if test="null != param.sortField and param.sortField != ''">
+            order by ${param.sortField} ${param.sortType}
+        </if>
+    </select>
+
+</mapper>
